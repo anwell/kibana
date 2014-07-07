@@ -28,9 +28,10 @@ define([
   'jquery.flot.time',
   'jquery.flot.byte',
   'jquery.flot.stack',
-  'jquery.flot.stackpercent'
+  'jquery.flot.stackpercent',
+  'config'
 ],
-function (angular, app, $, _, kbn, moment, timeSeries, numeral) {
+function (angular, app, $, _, kbn, moment, timeSeries, numeral, config) {
 
   'use strict';
 
@@ -57,10 +58,9 @@ function (angular, app, $, _, kbn, moment, timeSeries, numeral) {
           src:'app/panels/minmaxhistogram/queriesEditor.html'
         },
       ],
-      status  : "Stable",
+      status  : "Beta",
       description : "A bucketed time series chart of the current query or queries. Uses the "+
-        "Elasticsearch date_histogram facet. If using time stamped indices this panel will query"+
-        " them sequentially to attempt to apply the lighest possible load to your Elasticsearch cluster"
+        "Elasticsearch date_histogram aggregation to get the minimum and maximum of each interval."
     };
 
     // Set and populate defaults
@@ -334,44 +334,51 @@ function (angular, app, $, _, kbn, moment, timeSeries, numeral) {
 
       $scope.panelMeta.loading = true;
 
-      request = 
-      {
-          "size": 0,
-          "aggs" : {
-            // "chanvals": {
-            //     "aggs": {
-                    "values_over_time" : {
-                        "date_histogram" : {
-                            "field" : $scope.panel.time_field,
-                            "interval" : _interval
-                          },
-                          "aggs": {
-                            "minimum": {
-                              "terms": {
-                                  "field": $scope.panel.time_field,
-                                  "order": {"y_min": "asc"},
-                                  "size": 1
-                                },
-                                "aggs": {
-                                    "y_min": {"min": {"field": $scope.panel.value_field } }
-                                  }
-                                },
-                                "maximum": {
-                                  "terms": {
-                                    "field": $scope.panel.time_field,
-                                    "order": {"y_max": "desc"},
-                                    "size": 1
-                                  },
-                                  "aggs": {
-                                    "y_max": {"max": {"field": $scope.panel.value_field } }
-                                  }
+      request = {
+        "size": 0,
+        "aggs": {
+            "values_over_time": {
+                "date_histogram": {
+                    "field": $scope.panel.time_field,
+                    "interval": _interval
+                },
+                "aggs": {
+                    "scet_y_min": {
+                        "terms": {
+                            "field": $scope.panel.time_field,
+                            "order": {
+                                "y_min": "asc"
+                            },
+                            "size": 1
+                        },
+                        "aggs": {
+                            "y_min": {
+                                "min": {
+                                    "field": $scope.panel.value_field
                                 }
-                              }
                             }
-                        //   }
-                        // }
-                      }
-                    };
+                        }
+                    },
+                    "scet_y_max": {
+                        "terms": {
+                            "field": $scope.panel.time_field,
+                            "order": {
+                                "y_max": "desc"
+                            },
+                            "size": 1
+                        },
+                        "aggs": {
+                            "y_max": {
+                                "max": {
+                                    "field": $scope.panel.value_field
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    };
       // request = $scope.ejs.Request().indices(dashboard.indices[segment]);
       // if (!$scope.panel.annotate.enable) {
       //   request.searchType("count");
@@ -386,7 +393,7 @@ function (angular, app, $, _, kbn, moment, timeSeries, numeral) {
       $scope.inspector = angular.toJson({aggs:request},true);
 
       results = $http({
-        url: "http://128.149.59.96:9200/people/person/_search",
+        url: config.elasticsearch + '/' + dashboard.indices + '/_search',
         method: "POST",
         data: request
       });
@@ -436,8 +443,8 @@ function (angular, app, $, _, kbn, moment, timeSeries, numeral) {
 
             // push each entry into the time series, while incrementing counters
             _.each(query_results.buckets, function(bucket) {
-              time_series.addValue(bucket.minimum.buckets[0].key, bucket.minimum.buckets[0].y_min.value);
-              time_series.addValue(bucket.maximum.buckets[0].key, bucket.maximum.buckets[0].y_max.value);
+              time_series.addValue(bucket.scet_y_min.buckets[0].key, bucket.scet_y_min.buckets[0].y_min.value);
+              time_series.addValue(bucket.scet_y_max.buckets[0].key, bucket.scet_y_max.buckets[0].y_max.value);
             });
 
             $scope.legend[i] = {query:q,hits:hits};
