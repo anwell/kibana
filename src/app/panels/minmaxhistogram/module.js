@@ -346,7 +346,7 @@ function (angular, app, $, _, kbn, moment, timeSeries, numeral) {
                             "interval" : _interval
                           },
                           "aggs": {
-                            "scet_y_min": {
+                            "minimum": {
                               "terms": {
                                   "field": $scope.panel.time_field,
                                   "order": {"y_min": "asc"},
@@ -356,7 +356,7 @@ function (angular, app, $, _, kbn, moment, timeSeries, numeral) {
                                     "y_min": {"min": {"field": $scope.panel.value_field } }
                                   }
                                 },
-                                "scet_y_max": {
+                                "maximum": {
                                   "terms": {
                                     "field": $scope.panel.time_field,
                                     "order": {"y_max": "desc"},
@@ -436,8 +436,8 @@ function (angular, app, $, _, kbn, moment, timeSeries, numeral) {
 
             // push each entry into the time series, while incrementing counters
             _.each(query_results.buckets, function(bucket) {
-              time_series.addValue(bucket.scet_y_min.buckets[0].key, bucket.scet_y_min.buckets[0].y_min.value);
-              time_series.addValue(bucket.scet_y_max.buckets[0].key, bucket.scet_y_max.buckets[0].y_max.value);
+              time_series.addValue(bucket.minimum.buckets[0].key, bucket.minimum.buckets[0].y_min.value);
+              time_series.addValue(bucket.maximum.buckets[0].key, bucket.maximum.buckets[0].y_max.value);
             });
 
             $scope.legend[i] = {query:q,hits:hits};
