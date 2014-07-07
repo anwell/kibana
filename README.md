@@ -1,3 +1,6 @@
+# HOW IS THIS DIFFERENT FROM VANILLA KIBANA?
+I have created a new panel that uses ElasticSearch aggregations to query for the maximum and minimum values within an interval. This helps users identify outliers much more easily than with using the mean value on a regular histogram panel.
+
 # Kibana
 
 __NOTE__: You have reached the Kibana 3 repository.
